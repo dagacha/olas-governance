@@ -27,9 +27,8 @@ package = false
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-
 [tool.ruff.lint]
 # E/W: pycodestyle, F: pyflakes, I: import sorting.
 select = ["E", "W", "F", "I"]
 # E501 (line too long) is left to the formatter; scripts have long inline data/addresses.
-ignore = ["E501"]
+ignore = ["E501", "E402"]

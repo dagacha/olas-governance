@@ -62,17 +62,33 @@ def _message_chunks(text: str, limit: int = MESSAGE_LIMIT) -> list[str]:
         return [text]
 
     chunks: list[str] = []
-    current: list[str] = []
-    size = 0
-    for line in text.splitlines(keepends=True):
-        if current and size + len(line) > limit:
-            chunks.append("".join(current).rstrip())
-            current = []
-            size = 0
-        current.append(line)
-        size += len(line)
-    if current:
-        chunks.append("".join(current).rstrip())
+    current_lines: list[str] = []
+    current_len = 0
+
+    def flush() -> None:
+        nonlocal current_lines, current_len
+        if current_lines:
+            chunks.append("\n".join(current_lines).rstrip())
+            current_lines = []
+            current_len = 0
+
+    for line in text.splitlines():
+        if len(line) > limit:
+            flush()
+            for start in range(0, len(line), limit):
+                chunks.append(line[start : start + limit])
+            continue
+
+        next_len = len(line) if not current_lines else current_len + 1 + len(line)
+        if current_lines and next_len > limit:
+            flush()
+        if current_lines:
+            current_len += 1 + len(line)
+        else:
+            current_len = len(line)
+        current_lines.append(line)
+
+    flush()
     return chunks
 
 

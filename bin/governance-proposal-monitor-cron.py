@@ -107,6 +107,9 @@ def main() -> int:
             print(result.stdout, end="")
             print(result.stderr, end="", file=sys.stderr)
             return 1 if result.returncode == 0 else result.returncode
+        scanned_to = int(match.group(1))
+        write_cursor(scanned_to + 1)
+        append_log(f"cursor advanced to {scanned_to + 1}")
 
         if result.returncode == 2:
             actionable = actionable_rows(read_csv_rows(CSV, limit=100))

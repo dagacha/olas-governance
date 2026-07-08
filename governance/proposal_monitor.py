@@ -111,12 +111,17 @@ def fetch_events(from_block, to_block):
     Tries each RPC endpoint in turn; on any failure it advances to the next endpoint and
     restarts the scan. Raises SystemExit only if every endpoint fails.
     """
+    try:
+        governor_abi = get_abi(GOVERNOR_ADDRESS)
+    except Exception as exc:  # noqa: BLE001 - surface ABI fetch failures before RPC retries
+        raise SystemExit(f"Failed to fetch Governor ABI from Etherscan for {GOVERNOR_ADDRESS}: {exc}") from exc
+
     endpoints = rpc_endpoints()
     last_error = None
     for rpc in endpoints:
         try:
             w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 30}))
-            gov = w3.eth.contract(address=Web3.to_checksum_address(GOVERNOR_ADDRESS), abi=get_abi(GOVERNOR_ADDRESS))
+            gov = w3.eth.contract(address=Web3.to_checksum_address(GOVERNOR_ADDRESS), abi=governor_abi)
             events = []
             start = from_block
             span = MAX_LOG_SPAN

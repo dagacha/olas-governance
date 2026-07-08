@@ -14,7 +14,7 @@ Standalone copy of the governance proposal monitor and Telegram bot.
 
 ## Installed cron jobs
 
-- Proposal alerts: every 10 minutes
+- Proposal alerts: once daily
 - Telegram command poller: every 1 minute
 
 Check the current entries with:

@@ -127,13 +127,18 @@ def send_telegram_message(
             raise RuntimeError(f"Telegram sendMessage failed: {response.status_code} {payload!r}")
 
 
-def read_csv_rows(csv_path: Path | str, limit: int = 2) -> list[dict[str, str]]:
-    """Read the last `limit` CSV rows, preserving file order."""
+def read_csv_rows(csv_path: Path | str, limit: int | None = 2) -> list[dict[str, str]]:
+    """Read CSV rows, preserving file order.
+
+    `limit=None` returns all rows; otherwise the last `limit` rows are returned.
+    """
     path = Path(csv_path)
     if not path.exists():
         return []
     with path.open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
+    if limit is None:
+        return rows
     return rows[-limit:]
 
 

@@ -112,7 +112,7 @@ def main() -> int:
         append_log(f"cursor advanced to {scanned_to + 1}")
 
         if result.returncode == 2:
-            actionable = actionable_rows(read_csv_rows(CSV, limit=100))
+            actionable = actionable_rows(read_csv_rows(CSV, limit=None))
             if actionable:
                 telegram_text = format_rows_message(
                     "GovernorOLAS actionable proposal(s) found:",

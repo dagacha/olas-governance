@@ -131,6 +131,25 @@ def main() -> int:
                 [str(LOGGER), "-t", "governance-proposal-monitor", f"actionable proposal(s) found; report={REPORT}"],
                 check=False,
             )
+        elif result.returncode == 0:
+            # No actionable proposals — send a daily "no new proposals" heartbeat
+            # Extract block range from the report so the user sees what was scanned
+            report_text = REPORT.read_text(encoding="utf-8") if REPORT.exists() else ""
+            block_line = ""
+            for line in report_text.splitlines():
+                if line.startswith("Scanned:"):
+                    block_line = line.strip()
+                    break
+            telegram_text = (
+                "GovernorOLAS daily scan\n"
+                f"{block_line if block_line else 'Scanned: see logs'}\n"
+                "No new proposals detected."
+            )
+            try:
+                send_telegram_message(telegram_text, env_path=ENV_PATH)
+                append_log("daily heartbeat: no new proposals — sent Telegram alert")
+            except Exception as exc:  # noqa: BLE001 - Telegram should not break the cron flow
+                append_log(f"daily heartbeat telegram send failed: {exc}")
         elif result.returncode not in (0, 2):
             append_log(f"monitor failed with exit code {result.returncode}")
 

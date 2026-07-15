@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import shlex
 from pathlib import Path
 from typing import Iterable
@@ -13,6 +14,13 @@ import requests
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 DEFAULT_TIMEOUT = 30
 MESSAGE_LIMIT = 3900
+
+TELEGRAM_TOKEN_URL = re.compile(r"(https://api\.telegram\.org/bot)[^/\s]+")
+
+
+def redact_telegram_error(error: object) -> str:
+    """Return an error message without a Telegram bot token embedded in a URL."""
+    return TELEGRAM_TOKEN_URL.sub(r"\1<redacted>", str(error))
 
 
 def load_env_exports(env_path: Path | str | None) -> None:

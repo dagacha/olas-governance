@@ -15,6 +15,7 @@ from governance.telegram_utils import (
     TELEGRAM_API,
     format_rows_message,
     read_csv_rows,
+    redact_telegram_error,
     send_telegram_message,
     telegram_credentials,
 )
@@ -106,7 +107,7 @@ def main() -> int:
             finally:
                 save_offset(offset)
     except Exception as exc:  # noqa: BLE001 - keep the poller quiet on transient API/network errors
-        print(f"Telegram bot error: {exc}")
+        print(f"Telegram bot error: {redact_telegram_error(exc)}")
         return 1
 
     return 0

@@ -1,27 +1,25 @@
 [project]
-name = "autonolas-analytics"
+name = "olas-governance"
 version = "0.1.0"
-description = ""
-authors = [{ name = "David Minarsch", email = "david.minarsch@googlemail.com" }]
+description = "Cron-based monitoring and Telegram alerts for Olas DAO governance proposals."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10,<4.0"
 dependencies = [
-    "web3>=6.6.1,<7",
     "python-dotenv>=1.0.0,<2",
-    "matplotlib>=3.8.0,<4",
-    "pandas>=2.1.3,<3",
-    "solana>=0.36.1,<0.40",
-    "solders>=0.23,<0.28",
-    "whirlpool-essentials>=0.0.5,<0.0.6",
-    "anchorpy>=0.21,<0.22",
+    "requests>=2.31,<3",
+    "web3>=6.6.1,<7",
 ]
+
+[project.urls]
+Repository = "https://github.com/dagacha/olas-governance"
+Issues = "https://github.com/dagacha/olas-governance/issues"
 
 [dependency-groups]
 dev = ["ruff>=0.6.0,<0.7"]
 
 [tool.uv]
-# This repo is a collection of standalone analytics scripts, not an installable
-# package, so don't try to build/install the project itself.
+# This repository deploys operational scripts rather than an installable Python package.
 package = false
 
 [tool.ruff]

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path("/home/ubuntu/olas-governance")
-UV = Path("/home/ubuntu/.local/bin/uv")
+REPO = Path(__file__).resolve().parents[1]
+UV = os.environ.get("UV_BIN", "uv")
 SCRIPT = REPO / "governance/governance_telegram_bot.py"
 LOG_DIR = REPO / "logs/governance-telegram-bot"
 RUN_LOG = LOG_DIR / "telegram-cron.log"

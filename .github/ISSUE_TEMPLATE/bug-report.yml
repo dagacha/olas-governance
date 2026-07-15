@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible problem with the governance monitor or Telegram integration.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include tokens, API keys, credential-bearing URLs, chat IDs, or private reports.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Observed behavior
+      description: Include the sanitized command, output, and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, uv version, and sanitized configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true

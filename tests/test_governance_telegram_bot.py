@@ -45,6 +45,24 @@ class GovernanceTelegramBotTests(unittest.TestCase):
                         bot.main()
                 self.assertEqual(bot.load_offset(), 0, "offset must not advance on send failure")
 
+    def test_offset_not_saved_when_later_update_follows_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            offset_file = Path(temp_dir) / "offset"
+            with (
+                patch.object(bot, "OFFSET_FILE", offset_file),
+                patch.object(bot, "STATE_DIR", offset_file.parent),
+                patch.object(bot, "send_telegram_message", side_effect=RuntimeError("API down")),
+            ):
+                bot.save_offset(0)
+                updates = [
+                    {"update_id": 42, "message": {"chat": {"id": "1"}, "text": "/governance"}},
+                    {"update_id": 43, "message": {"chat": {"id": "1"}, "text": "irrelevant"}},
+                ]
+                with patch.object(bot, "telegram_credentials", return_value=("token", "1")):
+                    with patch.object(bot, "get_updates", return_value=updates):
+                        bot.main()
+                self.assertEqual(bot.load_offset(), 0, "offset must not advance past failed update")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,14 +2,16 @@
 from __future__ import annotations
 
 import fcntl
+import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path("/home/ubuntu/olas-governance")
-UV = Path("/home/ubuntu/.local/bin/uv")
+REPO = Path(__file__).resolve().parents[1]
+UV = os.environ.get("UV_BIN", "uv")
 MONITOR = REPO / "governance/proposal_monitor.py"
 STATE_DIR = REPO / "state/governance-proposal-monitor"
 LOG_DIR = REPO / "logs/governance-proposal-monitor"
@@ -20,11 +22,17 @@ RUN_LOG = LOG_DIR / "cron.log"
 REPORT = ARTIFACT_DIR / "latest.md"
 CSV = ARTIFACT_DIR / "latest.csv"
 LOOKBACK_BLOCKS = 14400
-LOGGER = Path("/usr/bin/logger")
+LOGGER = shutil.which("logger")
 ENV_PATH = REPO / ".env"
 
 sys.path.insert(0, str(REPO))
-from governance.telegram_utils import actionable_rows, format_rows_message, read_csv_rows, send_telegram_message
+from governance.telegram_utils import (
+    actionable_rows,
+    format_rows_message,
+    read_csv_rows,
+    redact_telegram_error,
+    send_telegram_message,
+)
 
 
 def now() -> str:
@@ -100,16 +108,24 @@ def main() -> int:
             append_log(combined.rstrip())
         else:
             append_log("monitor produced no output")
+        if result.returncode not in (0, 2):
+            append_log(f"monitor failed with exit code {result.returncode}; cursor not advanced")
+            print(result.stdout, end="")
+            print(result.stderr, end="", file=sys.stderr)
+            return result.returncode
+        if not REPORT.is_file() or not CSV.is_file():
+            append_log("monitor did not produce both report and CSV artifacts; cursor not advanced")
+            print(result.stdout, end="")
+            print(result.stderr, end="", file=sys.stderr)
+            return 1
 
         match = re.search(r"^scanned_to=(\d+)", result.stdout, re.MULTILINE)
         if not match:
             append_log("missing scanned_to marker; cursor not advanced")
             print(result.stdout, end="")
             print(result.stderr, end="", file=sys.stderr)
-            return 1 if result.returncode == 0 else result.returncode
+            return 1
         scanned_to = int(match.group(1))
-        write_cursor(scanned_to + 1)
-        append_log(f"cursor advanced to {scanned_to + 1}")
 
         if result.returncode == 2:
             actionable = actionable_rows(read_csv_rows(CSV, limit=None))
@@ -122,15 +138,22 @@ def main() -> int:
                 try:
                     send_telegram_message(telegram_text, env_path=ENV_PATH)
                     append_log(f"telegram alert sent for {len(actionable)} actionable proposal(s)")
-                except Exception as exc:  # noqa: BLE001 - Telegram should not break the cron flow
-                    append_log(f"telegram send failed: {exc}")
+                except Exception as exc:  # noqa: BLE001 - retry actionable alerts before advancing the cursor
+                    append_log(f"telegram send failed: {redact_telegram_error(exc)}; cursor not advanced")
+                    print(result.stdout, end="")
+                    print(result.stderr, end="", file=sys.stderr)
+                    return 1
             else:
-                append_log("exit 2 but no actionable rows were found in latest.csv")
+                append_log("exit 2 but no actionable rows were found in latest.csv; cursor not advanced")
+                print(result.stdout, end="")
+                print(result.stderr, end="", file=sys.stderr)
+                return 1
 
-            subprocess.run(
-                [str(LOGGER), "-t", "governance-proposal-monitor", f"actionable proposal(s) found; report={REPORT}"],
-                check=False,
-            )
+            if LOGGER:
+                subprocess.run(
+                    [LOGGER, "-t", "governance-proposal-monitor", f"actionable proposal(s) found; report={REPORT}"],
+                    check=False,
+                )
         elif result.returncode == 0:
             # No actionable proposals — send a daily "no new proposals" heartbeat
             # Extract block range from the report so the user sees what was scanned
@@ -149,9 +172,10 @@ def main() -> int:
                 send_telegram_message(telegram_text, env_path=ENV_PATH)
                 append_log("daily heartbeat: no new proposals — sent Telegram alert")
             except Exception as exc:  # noqa: BLE001 - Telegram should not break the cron flow
-                append_log(f"daily heartbeat telegram send failed: {exc}")
-        elif result.returncode not in (0, 2):
-            append_log(f"monitor failed with exit code {result.returncode}")
+                append_log(f"daily heartbeat telegram send failed: {redact_telegram_error(exc)}")
+
+        write_cursor(scanned_to + 1)
+        append_log(f"cursor advanced to {scanned_to + 1}")
 
         print(result.stdout, end="")
         print(result.stderr, end="", file=sys.stderr)

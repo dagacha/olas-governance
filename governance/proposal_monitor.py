@@ -44,12 +44,14 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 from dotenv import load_dotenv
 from web3 import Web3
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY")
 ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY")
@@ -69,6 +71,14 @@ MAX_LOG_SPAN = 5000
 MIN_LOG_SPAN = 50
 
 PUBLIC_RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.llamarpc.com", "https://cloudflare-eth.com"]
+
+
+def redacted_endpoint(endpoint: str) -> str:
+    """Return an endpoint identifier without credentials, paths, or query strings."""
+    parsed = urlsplit(endpoint)
+    if not parsed.scheme or not parsed.hostname:
+        return "<invalid endpoint>"
+    return f"{parsed.scheme}://{parsed.hostname}/<redacted>"
 
 
 def _is_range_error(exc):
@@ -113,8 +123,10 @@ def fetch_events(from_block, to_block):
     """
     try:
         governor_abi = get_abi(GOVERNOR_ADDRESS)
-    except Exception as exc:  # noqa: BLE001 - surface ABI fetch failures before RPC retries
-        raise SystemExit(f"Failed to fetch Governor ABI from Etherscan for {GOVERNOR_ADDRESS}: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001 - avoid exposing the API-key query string in request errors
+        raise SystemExit(
+            f"Failed to fetch Governor ABI from Etherscan for {GOVERNOR_ADDRESS}: {type(exc).__name__}"
+        ) from exc
 
     endpoints = rpc_endpoints()
     last_error = None
@@ -139,7 +151,7 @@ def fetch_events(from_block, to_block):
                     raise
             return events
         except Exception as exc:  # noqa: BLE001 - any RPC/decode error -> try the next endpoint
-            last_error = f"{type(exc).__name__} on {rpc}: {exc}"
+            last_error = f"{type(exc).__name__} on {redacted_endpoint(rpc)}"
     raise SystemExit(
         f"All RPC endpoints failed. Last error: {last_error}\nSet ALCHEMY_API_KEY, ETH_RPC, or ETH_RPC_URL."
     )
@@ -153,7 +165,7 @@ def latest_block():
             w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 30}))
             return w3.eth.block_number
         except Exception as exc:  # noqa: BLE001 - any RPC error -> try the next endpoint
-            last_error = f"{type(exc).__name__} on {rpc}: {exc}"
+            last_error = f"{type(exc).__name__} on {redacted_endpoint(rpc)}"
     raise SystemExit(
         f"All RPC endpoints failed. Last error: {last_error}\nSet ALCHEMY_API_KEY, ETH_RPC, or ETH_RPC_URL."
     )

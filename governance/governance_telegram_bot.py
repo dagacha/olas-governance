@@ -15,6 +15,7 @@ from governance.telegram_utils import (
     TELEGRAM_API,
     format_rows_message,
     read_csv_rows,
+    redact_telegram_error,
     send_telegram_message,
     telegram_credentials,
 )
@@ -92,21 +93,29 @@ def main() -> int:
     try:
         updates = get_updates(token, offset)
         for update in updates:
-            offset = max(offset, int(update.get("update_id", 0)) + 1)
+            update_id = int(update.get("update_id", 0))
+            next_offset = max(offset, update_id + 1)
             try:
                 message = extract_update_message(update)
                 if not message or not chat_matches(message, chat_id):
+                    offset = next_offset
+                    save_offset(offset)
                     continue
                 text = command_text(message)
                 if not COMMAND_RE.match(text):
+                    offset = next_offset
+                    save_offset(offset)
                     continue
                 reply = governance_response()
                 send_telegram_message(reply, token=token, chat_id=chat_id, env_path=ENV_PATH)
-                print(f"Handled /governance at update_id={update.get('update_id')}")
-            finally:
+                print(f"Handled /governance at update_id={update_id}")
+                offset = next_offset
                 save_offset(offset)
+            except Exception:  # noqa: BLE001 - keep the poller quiet on transient API/network errors
+                print(f"Telegram bot error: failed to handle update_id={update_id}")
+                return 1
     except Exception as exc:  # noqa: BLE001 - keep the poller quiet on transient API/network errors
-        print(f"Telegram bot error: {exc}")
+        print(f"Telegram bot error: {redact_telegram_error(exc)}")
         return 1
 
     return 0

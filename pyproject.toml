@@ -16,7 +16,7 @@ Repository = "https://github.com/dagacha/olas-governance"
 Issues = "https://github.com/dagacha/olas-governance/issues"
 
 [dependency-groups]
-dev = ["ruff>=0.6.0,<0.7"]
+dev = ["ruff>=0.6.0,<0.18"]
 
 [tool.uv]
 # This repository deploys operational scripts rather than an installable Python package.
